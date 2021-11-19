@@ -42,10 +42,10 @@ class FLPFile(object):
                     raise Exception(f'Header chunk must have length 6 : got {hex(length)}')
 
                 self.header = FLPHeader(buffer[8:])
-                print(f"Header is {self.header}")
+                # print(f"Header is {self.header}")
 
             elif header=='FLdt' : # track
-                self.tracks.append(FLPTrack(buffer[8:1000]))
+                self.tracks.append(FLPTrack(buffer[8:160]))
             else:
                 print(f'Unknown chunk type {header} - skipping')
             buffer = buffer[8+length:]
