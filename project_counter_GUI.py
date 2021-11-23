@@ -1,5 +1,5 @@
 # --------------------------------------------
-#   Version: 0.2.0
+#   Version: 0.4.1
 #   Creators: Elliott Chimienti, Zane Little
 #   Support us!: https://ko-fi.com/flhourcounterguys
 # -------------------------------------------
@@ -70,7 +70,7 @@ if __name__ == "__main__":
                 [sg.Text('')],
                 [sg.Text('Select Master Folder')],
                 [sg.In('No Folder Selected',disabled = True,text_color = '#737373'), sg.FolderBrowse(initial_folder = 'C:',key = "SelectedFolder")],
-                [ sg.Button('About',button_color='#52829c'), sg.Text('                     '), sg.Button('Calculate!'), sg.Text('                          '), sg.Text("v0.3.0",text_color='#a1a1a1')]
+                [ sg.Button('About',button_color='#52829c'), sg.Text('                     '), sg.Button('Calculate!'), sg.Text('                          '), sg.Text("v0.4.1",text_color='#a1a1a1')]
              ]
 
     # Create WINDOWS
