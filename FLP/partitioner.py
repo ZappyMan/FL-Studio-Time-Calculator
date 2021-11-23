@@ -45,7 +45,7 @@ class FLPFile(object):
                 # print(f"Header is {self.header}")
 
             elif header=='FLdt' : # track
-                self.tracks.append(FLPTrack(buffer[8:160]))
+                self.tracks.append(FLPTrack(buffer[8:320]))
             else:
                 print(f'Unknown chunk type {header} - skipping')
             buffer = buffer[8+length:]
