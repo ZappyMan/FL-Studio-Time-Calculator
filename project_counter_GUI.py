@@ -1,10 +1,10 @@
 # --------------------------------------------
-#   Version: 0.4.1
+#   Version: 0.9.0
 #   Creators: Elliott Chimienti, Zane Little
 #   Support us!: https://ko-fi.com/flhourcounterguys
 # -------------------------------------------
 
-import FLP, struct, glob, os, fnmatch, sys, gc
+import FLP, struct, glob, os, fnmatch, sys, gc, time
 import PySimpleGUI as sg
 import webbrowser
 from datetime import datetime,timedelta,date
@@ -39,8 +39,11 @@ def reverse_endian(hex):
 def get_hex(track):
     track.parse()
     track = str(track)
-    idx = track.find('(ProjectTime) =') + 16
-    return track[idx:idx+48]
+    idx = track.find('(ProjectTime) =')
+    if idx == -1:
+        return False
+    else:
+        return track[idx+16:idx+64]
 
 # Cleans string and converts to float
 def clean_convert(hex):
@@ -63,14 +66,14 @@ def hex_time(hex):
 if __name__ == "__main__":
     # Define window layout
     sg.theme('Dark')
-    layout = [[sg.MLine(size=(54,17), key='-ML-', disabled = True, write_only = True, no_scrollbar = True, auto_refresh = True)],
+    layout = [[sg.MLine(size=(54,19), key='-ML-', disabled = True, write_only = True, no_scrollbar = True, auto_refresh = True)],
                 [sg.Text('Select Time Frame (Leave blank for all time)')],
                 [sg.In('Earliest',disabled = True,text_color = '#737373',size=(23,1)), sg.Text(' to '),sg.In('Latest',disabled = True,text_color = '#737373',size=(23,1))],
                 [sg.CalendarButton('Start Date', target=(2,0), key='date1'), sg.Text('                             '),sg.CalendarButton('End Date', target=(2,2), key='date2')],
                 [sg.Text('')],
                 [sg.Text('Select Master Folder')],
                 [sg.In('No Folder Selected',disabled = True,text_color = '#737373'), sg.FolderBrowse(initial_folder = 'C:',key = "SelectedFolder")],
-                [ sg.Button('About',button_color='#52829c'), sg.Text('                     '), sg.Button('Calculate!'), sg.Text('                          '), sg.Text("v0.4.1",text_color='#a1a1a1')]
+                [ sg.Button('About',button_color='#52829c'), sg.Text('                     '), sg.Button('Calculate!'), sg.Text('                          '), sg.Text("v0.9.0",text_color='#a1a1a1')]
              ]
 
     # Create WINDOWS
@@ -99,14 +102,15 @@ if __name__ == "__main__":
                 window['-ML-'].update('')
                 if(date2 > datetime.date(datetime.now())):
                     print("     ----------------------------------------------")
-                    print("     ",date2, " Hasn't Happened Yet!")
+                    print("     ",date2, " Hasn't happened het!")
                     print("     ----------------------------------------------")
                 elif(date2 > date1):
                     print("     ----------------------------------------------")
-                    print("     Make Sure Start Date Is Before End Date")
+                    print("     Make sure start date is before end date!")
                     print("     ----------------------------------------------")
                 else:
                     total = 0   # will store total time
+                    unparsables = 0  # number of files that cant be parsed
                     totalfiles=0    # Store total files
                     earliest = None     # Store earliest project date
                     latest = None       # Store latest project date
@@ -126,27 +130,34 @@ if __name__ == "__main__":
                                 window['-ML-'].update("Found file: "+thing.replace(directory+'/',''))   # Clear GUI console
                                 print("\nTotal found: "+str(totalfiles))
                                 hex = get_hex(track)                                                    # Finds Project Timecode Hex
-                                cur = datetime.date(hex_time(hex))                                      # Finds creation date of file
+                                # time.sleep(5)
+                                if hex != False:   # if project time was found
+                                    cur = datetime.date(hex_time(hex))                                      # Finds creation date of file
 
-                                if cur >= date2 and cur <= date1:                                  # If project dates lands between user inputed date
-                                    if earliest == None or cur > earliest:                              # If current project date is newer than earliest date
-                                        earliest = cur
+                                    if cur >= date2 and cur <= date1:                                  # If project dates lands between user inputed date
+                                        if earliest == None or cur > earliest:                              # If current project date is newer than earliest date
+                                            earliest = cur
 
-                                    if latest == None or cur < latest:                                  # If current project date is older than latest date
-                                        latest = cur
+                                        if latest == None or cur < latest:                                  # If current project date is older than latest date
+                                            latest = cur
 
-                                    total += clean_convert(hex)                                         # Extract project time
-                                    totalfiles+=1
+                                        total += clean_convert(hex)                                         # Extract project time
+                                        totalfiles+=1
+                                else:   # if project time wasnt found
+                                    unparsables += 1
                                 del track           # clear parsed memory
                             del x               # Close FL file
 
                         window['-ML-'].update('')                               # Clean GUI console
                         if totalfiles == 0:
                             print("     ----------------------------------------------")
-                            print("     No Project Files Found Within Date Range :(")
+                            print("     No project files found within date range... :(")
                             print("     ----------------------------------------------")
                         else:
+
+
                             # Stats calculations
+
                             total = str(total)
                             days = total[0:total.find(".")]
                             hours = str((86400 * (float(total) - float(days)))/3600)
@@ -159,6 +170,30 @@ if __name__ == "__main__":
                             averagehours = str(round(float(totalhours)/float(totalfiles),2))
                             averagedays = earliest-latest
                             averagedays = round(averagedays.days/totalfiles,2)
+                            totalfiles = totalfiles + unparsables
+
+                            choice = False
+                            if unparsables > 0:
+                                info = str(unparsables) + ' files could not be read (they are from an old version of FL that we could not figure out).'
+                                info2 = 'Would you like to add your average hours (' + str(averagehours) + ') to these files? This will contribute to your total hours.'
+                                errorlayout = [[sg.Text(info)],
+                                [sg.Text(info2)],
+                                [sg.Button('Yes'), sg.Button('No',button_color='#871D11')]]
+                                poop = sg.Window('About', errorlayout, grab_anywhere=True, icon=ico)
+
+                                while True:
+                                    errorevent, errorvalues = poop.read()
+                                    if errorevent == sg.WIN_CLOSED or errorevent == 'No':     # If user closed window with X or if user clicked "Exit" button then exit
+                                        poop.close()
+                                        break
+                                    elif errorevent == 'Yes':
+                                        choice = True
+                                        poop.close()
+                                        break
+                                    poop.refresh()
+
+                            if choice == True:
+                                totalhours = totalhours + (float(averagehours) * unparsables)
 
                             print()
                             print("     Howdy",os.getlogin()+"!")
@@ -167,13 +202,16 @@ if __name__ == "__main__":
                             print("     Your FL Studio Stats For ", date2 , " to ", date1)
                             print("     ----------------------------------------------")
                             print("     Total Project Files:",totalfiles)
-                            print("     -")
+                            if unparsables > 0:
+                                print("     ")
+                                print("     Unreadable Projects:",unparsables, "(", round(100*(unparsables/totalfiles), 2),"% ) of total files")
+                            print("     ")
                             print("     Total Active Time:",days,"day(s),", hours,"hours, and",min,"minutes!")
-                            print("     -")
+                            print("     ")
                             print("     Total Active Hours:",totalhours)
-                            print("     -")
+                            print("     ")
                             print("     Average Hours Per Project:",averagehours)
-                            print("     -")
+                            print("     ")
                             print("     Average Days Between New Projects:",averagedays)
                             print("     ----------------------------------------------")
                             window.Refresh()
