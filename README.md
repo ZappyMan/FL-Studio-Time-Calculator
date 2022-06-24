@@ -3,4 +3,6 @@ FL Studio keeps track of how many active hours you spend on each project, but no
 
 This program was created out of the primal, human urge to keep track of and gawk at the amount of time we all spend on FL Studio. For better or for worse, we will never stop producing!
 
+This program does not modify your save files in any way, its only allowed to read file contents.
+
 Support us at https://ko-fi.com/flhourcounterguys
