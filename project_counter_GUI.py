@@ -1,5 +1,5 @@
 # --------------------------------------------
-#   Version: 0.9.0
+#   Version: 0.9.1
 #   Creators: Elliott Chimienti, Zane Little
 #   Support us!: https://ko-fi.com/flhourcounterguys
 # -------------------------------------------
@@ -39,11 +39,26 @@ def reverse_endian(hex):
 def get_hex(track):
     track.parse()
     track = str(track)
-    idx = track.find('(ProjectTime) =')
-    if idx == -1:
+    track = track.splitlines()   # remove all indents
+    head = track.pop(0)
+
+    idx = head.find("(Version) = ")
+    if idx == -1:  # No version found in first line
         return False
     else:
-        return track[idx+16:idx+64]
+        head = head[idx+12:]
+        head = head.split(".")
+        if int(head[0]) <= 10:  # If version is equal to or less than 10
+            return False
+
+    for l in track:
+        idx = l.find("(ProjectTime) = ")
+        if idx != -1:
+            return l[idx+16:idx+64]
+
+    if idx == -1:
+        return False
+
 
 # Cleans string and converts to float
 def clean_convert(hex):
@@ -73,7 +88,7 @@ if __name__ == "__main__":
                 [sg.Text('')],
                 [sg.Text('Select Master Folder')],
                 [sg.In('No Folder Selected',disabled = True,text_color = '#737373'), sg.FolderBrowse(initial_folder = 'C:',key = "SelectedFolder")],
-                [ sg.Button('About',button_color='#52829c'), sg.Text('                     '), sg.Button('Calculate!'), sg.Text('                          '), sg.Text("v0.9.0",text_color='#a1a1a1')]
+                [ sg.Button('About',button_color='#52829c'), sg.Text('                     '), sg.Button('Calculate!'), sg.Text('                          '), sg.Text("v0.9.1",text_color='#a1a1a1')]
              ]
 
     # Create WINDOWS
@@ -114,6 +129,7 @@ if __name__ == "__main__":
                     totalfiles=0    # Store total files
                     earliest = None     # Store earliest project date
                     latest = None       # Store latest project date
+                    stuckFiles = []
 
                     everything = glob.glob(values[2]+"/**/*.flp", recursive=True)
                     if not everything:                              # Checks if list is empty, no flps found
@@ -129,8 +145,9 @@ if __name__ == "__main__":
                                 track.parse() # this sucks
                                 window['-ML-'].update("Found file: "+thing.replace(directory+'/',''))   # Clear GUI console
                                 print("\nTotal found: "+str(totalfiles))
-                                hex = get_hex(track)                                                    # Finds Project Timecode Hex
-                                # time.sleep(5)
+                                hex = get_hex(track)
+                                                                                   # Finds Project Timecode Hex
+                                print("Hex: ", hex)
                                 if hex != False:   # if project time was found
                                     cur = datetime.date(hex_time(hex))                                      # Finds creation date of file
 
@@ -145,11 +162,12 @@ if __name__ == "__main__":
                                         totalfiles+=1
                                 else:   # if project time wasnt found
                                     unparsables += 1
+                                    stuckFiles.append(thing)
                                 del track           # clear parsed memory
                             del x               # Close FL file
 
                         window['-ML-'].update('')                               # Clean GUI console
-                        if totalfiles == 0:
+                        if totalfiles == 0 or unparsables == 0:
                             print("     ----------------------------------------------")
                             print("     No project files found within date range... :(")
                             print("     ----------------------------------------------")
@@ -180,6 +198,10 @@ if __name__ == "__main__":
                                 [sg.Text(info2)],
                                 [sg.Button('Yes'), sg.Button('No',button_color='#871D11')]]
                                 poop = sg.Window('About', errorlayout, grab_anywhere=True, icon=ico)
+
+                                print("UNREADABLE/OLD FILES")
+                                for paths in stuckFiles:
+                                    print(paths)
 
                                 while True:
                                     errorevent, errorvalues = poop.read()
