@@ -120,7 +120,7 @@ def parse(file: pathlib.Path | str) -> Project:
     plug_name = None
     str_type: type[AsciiEvent] | type[UnicodeEvent] | None = None
     stream.seek(22)  # Back to start of events
-    while stream.tell() < file_size/4:
+    while stream.tell() < 1000:
         event_type: type[AnyEvent] | None = None
         id = EventEnum(int.from_bytes(stream.read(1), "little"))
 

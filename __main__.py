@@ -14,7 +14,7 @@ import pyqtgraph as pg
 
 # Local clone of pyflp library used
 import pyflp
-# CHANGES MADE
+# CHANGES MADE TO LIBRARY
 #   __init__.py 
 #       - Line 131 divided file_size by 2
 #    channel.py 
@@ -181,6 +181,7 @@ class Window(QMainWindow):
         self.FLP_files["creation_dates"].append(temp.created_on)
         self.FLP_files["time_spent"].append(hours)
         self.total_time += hours
+        self.plotItem.clear()
         self.plotItem.plot(x=[x.timestamp() for x in self.FLP_files["creation_dates"]] , y=self.FLP_files["time_spent"], pen=None, symbol='o')
         num_files = len(self.FLP_files["creation_dates"])
         self.total_num_files.setText(str(num_files))
