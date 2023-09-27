@@ -1,0 +1,64 @@
+# ---------------------------------------------------
+#   Version: 2.0.0
+#   Creators: Elliott Chimienti, Zane Little
+#   Support us!: https://ko-fi.com/flhourcounterguys
+# ---------------------------------------------------
+#   Python 3.10
+#   PyFLP 2.2.1
+#   PySide6
+
+from PySide6.QtWidgets import QAbstractItemView, QTabWidget, QLabel, QSplitter ,QApplication, QMainWindow, QToolButton, QDateEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, QTreeWidget, QTreeWidgetItem, QGroupBox
+from PySide6.QtCore import Qt
+from flpobject import FLP_Object
+
+# Holds QTreeWidget file tree and appropriate customization functions
+class CustomTree():
+    def __init__(self, tree_bool):
+        self.tree = QTreeWidget()
+        self.tree.setColumnCount(3)
+        self.tree.setHeaderLabels(["Files","Hours","Creation Date"])
+        self.tree.setSortingEnabled(True)
+        # configure sorting characteristics
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)   # Extended Selection
+
+        self.tree_bool = tree_bool    # True == Tree, False == List
+
+    # Return TreeWidget object
+    def get_qt_obj(self):
+        return self.tree
+
+    # Add item to widget
+    def add_item(self, flp_object: FLP_Object):
+        if self.tree_bool:     # If this object is a tree
+            self.insert_into_tree(flp_object)
+        else:
+            self.tree.insertTopLevelItem(0,flp_object.list_object)
+
+    # Inserts object into file tree
+    def insert_into_tree(self, flp_object: FLP_Object):
+        tree_pointer = None
+        print()
+        print("START")
+        for directory in flp_object.path_to_array(flp_object.relative_path):
+            # check for root directory
+            print(directory)
+            if self.tree.topLevelItemCount() == 0:
+                root = QTreeWidgetItem([directory,"",""])
+                root.setCheckState(0,Qt.CheckState.Checked)
+                self.tree.insertTopLevelItem(0,root)
+                tree_pointer = root
+            else:
+                matches = self.tree.findItems(directory, Qt.MatchFlag.MatchExactly|Qt.MatchFlag.MatchRecursive, column=0)
+                if len(matches) > 0:
+                    tree_pointer = matches[0]
+                else:
+                    if directory.endswith(".flp"):  # Add file
+                        tree_pointer.addChild(flp_object.tree_object)
+                        tree_pointer.setExpanded(True)
+                    else:
+                        dir = QTreeWidgetItem([directory,"",""])
+                        dir.setCheckState(0,Qt.CheckState.Checked)
+                        tree_pointer.addChild(dir)
+                        tree_pointer.setExpanded(True)
+                        tree_pointer = dir
+                    

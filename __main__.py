@@ -7,10 +7,12 @@
 #   PyFLP 2.2.1
 #   PySide6
 
-import sys, os, datetime, time
+import sys, os, datetime
 from PySide6.QtWidgets import QAbstractItemView, QTabWidget, QLabel, QSplitter ,QApplication, QMainWindow, QToolButton, QDateEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, QTreeWidget, QTreeWidgetItem, QGroupBox
 from PySide6.QtCore import QDateTime, Qt
 import pyqtgraph as pg
+from filetree import CustomTree
+from flpobject import FLP_Object
 
 # Local clone of pyflp library used
 import pyflp
@@ -30,30 +32,18 @@ class Window(QMainWindow):
         window_size = QApplication.primaryScreen().availableSize()
         self.resize(window_size)    # Set app to size of screen
 
-        self.FLP_files = {
-            "creation_dates": [],
-            "time_spent": []
-        } # List of custom dict holding every FLP file info
-        self.total_time = 0  # Inital Time delta of 0
+        self.flp_objects = []   # Empty list to fold FLP_Object()'s
         
         # ----- Define Buttons and widgets in order of appearance ------
 
         self.tabs = QTabWidget()
 
-        self.filetree = QTreeWidget()
-        self.filetree.setColumnCount(3)
-        self.filetree.setHeaderLabels(["Files","Hours","Creation Date"])
-        self.filetree.setSortingEnabled(True)
+        self.filetree = CustomTree(True)
+        self.filelist = CustomTree(False)
 
-        self.filelist = QTreeWidget()
-        self.filelist.setColumnCount(3)
-        self.filelist.setHeaderLabels(["Files","Hours","Creation Date"])
-        self.filelist.setSortingEnabled(True)
-        self.filelist.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)   # Extended Selection
+        self.tabs.addTab(self.filelist.tree, "List")
+        self.tabs.addTab(self.filetree.tree, "Tree")
 
-        self.tabs.addTab(self.filetree, "Tree")
-        self.tabs.addTab(self.filelist, "List")
-        # self.tabs.currentChanged.connect(self.onTabChange) # Swap Qwidgets between layouts! (Stupid hacky solution)
         self.tabs.setTabEnabled(1, True)
         self.tabs.setTabEnabled(2, True)
 
@@ -144,10 +134,10 @@ class Window(QMainWindow):
         self.SectionDivider.addWidget(self.Lwidget)
         self.SectionDivider.addWidget(self.Rwidget)
         self.SectionDivider.setSizes([window_size.width()*.30,window_size.width()*.70]) # Set sections to 25% and 75% screen width
-        self.filetree.header().resizeSection(0,int(window_size.width()*.12))
-        self.filelist.header().resizeSection(0,int(window_size.width()*.12))
-        self.filetree.header().setMinimumSectionSize(int(window_size.width()*.05))
-        self.filelist.header().setMinimumSectionSize(int(window_size.width()*.05))
+        self.filetree.tree.header().resizeSection(0,int(window_size.width()*.12))
+        self.filelist.tree.header().resizeSection(0,int(window_size.width()*.12))
+        self.filetree.tree.header().setMinimumSectionSize(int(window_size.width()*.05))
+        self.filelist.tree.header().setMinimumSectionSize(int(window_size.width()*.05))
         # self.filelist.header().setSelectionBehavior()
 
         widget = QWidget()
@@ -167,88 +157,47 @@ class Window(QMainWindow):
     def load_folders(self):
         path = QFileDialog().getExistingDirectory(self, 'Select a directory')
         if(path):
-            FLPfiles, FLPfiles_full = self.walk(path)  # Returns FLPFile struct Object
-            if len(FLPfiles) > 0:   # If project(s) found
+            filepaths_full, filepaths_relative_dir = self.walk(path)  # Returns FLPFile struct Object
+            if len(filepaths_full) > 0:   # If project(s) found
                 # Set root directory
-                root_path = os.path.normpath(path)
-                root = QTreeWidgetItem([root_path.split(os.sep)[-1],""])
-                root.setCheckState(0,Qt.CheckState.Checked)
-                self.filetree.insertTopLevelItem(0, root)
-                root.setExpanded(True)
-                for FLP_path, FLP_path_full in zip(FLPfiles, FLPfiles_full):
-                    tree_pointer = None         # Holds last traversed TreeWudgetItem
-                    text_color = Qt.GlobalColor.transparent
-                    try:
-                        hours, created_on = self.parse(FLP_path_full)   # Parse file
-                    except:
-                        text_color = Qt.GlobalColor.red
-                    for file in FLP_path:   # For every index within FLP path
-                        items = self.filetree.findItems(file, Qt.MatchFlag.MatchExactly|Qt.MatchFlag.MatchRecursive, column=0)
-                        if len(items) > 0:              # If sub-directory already exists withinn tree
-                            tree_pointer = items[0]     # Set pointer to that directory
-                        else:                           # Create new tree item
-                            temp = QTreeWidgetItem([file,""])
-                            temp.setCheckState(0,Qt.CheckState.Checked)
-                            if file.endswith(".flp"):
-                                file_tree_temp = QTreeWidgetItem([file,str("{:.2f}".format(hours)),str(created_on.date())])
-                                file_tree_temp.setCheckState(0,Qt.CheckState.Checked)
-                                file_tree_temp.setBackground(0,text_color)
-                                temp.setBackground(0,text_color)
-                                self.filelist.addTopLevelItem(file_tree_temp)
-                                temp.setData(1, Qt.ItemDataRole.DisplayRole, str("{:.2f}".format(hours)))
-                                temp.setData(2, Qt.ItemDataRole.DisplayRole, str(created_on.date()))
-                            temp.setExpanded(True)
-                            tree_pointer.addChild(temp)
-                            tree_pointer = temp         # Update pointer
+                # root_path = os.path.normpath(path)
+                # root = QTreeWidgetItem([root_path.split(os.sep)[-1],""])
+                # root.setCheckState(0,Qt.CheckState.Checked)
+                # self.filetree.insertTopLevelItem(0, root)
+                # root.setExpanded(True)
+                for full_path, relative_path in zip(filepaths_full, filepaths_relative_dir):
+                    project = FLP_Object(full_path, relative_path)
+                    project.parse() # parse project
+                    self.filetree.add_item(project) # Add FLP to tree
+                    self.filelist.add_item(project) # Add FLP to list
+                    self.flp_objects.append(project)
                     QApplication.processEvents()
 
-                range = self.scatter.getPlotItem().getViewBox().viewRange()
-                self.scatter.getPlotItem().getViewBox().setLimits(xMin=range[0][0], xMax=range[0][1],   
-                             yMin=range[1][0], yMax=range[1][1])
-                          
-    # Parse passed FLP file path
-    # Parrelellize
-    def parse(self, path):
-        real_path = os.path.abspath(path)
-        temp = pyflp.parse(real_path)
-        hours = temp.time_spent/datetime.timedelta(hours=1) # Float
-        self.total_time += hours
-        self.FLP_files["creation_dates"].append(temp.created_on)
-        self.FLP_files["time_spent"].append(hours)
-        self.total_time += hours
-        self.plotItem.plot(x=[x.timestamp() for x in self.FLP_files["creation_dates"]] , y=self.FLP_files["time_spent"], pen=None, symbol='o')
-        num_files = len(self.FLP_files["creation_dates"])
-        self.total_num_files.setText(str(num_files))
-        self.total_time_hours.setText(str("{:.2f}".format(self.total_time)))
-        self.average_time.setText(str("{:.2f}".format(self.total_time/num_files)))
-        return hours, temp.created_on
+                # range = self.scatter.getPlotItem().getViewBox().viewRange()
+                # self.scatter.getPlotItem().getViewBox().setLimits(xMin=range[0][0], xMax=range[0][1],   
+                #              yMin=range[1][0], yMax=range[1][1])
 
     # Fast search of selected root directory and sub-directories
-    def walk(self, path):
-        FLPfiles = []
-        FLPfiles_full = []
-        root_folder_name = self.path_to_array(path)[-1]
+    # Output nexted array in compress filepath form 
+    def walk(self, path: str):
+        filepath_full = []          # FULL path directory for importing
+        filepath_relative_dir = []  # Relative directory for file tree
+        root_folder_name = path.split(os.sep)[-1]
         update_process_counter = 0
         for p, _, f in os.walk(path):
             for file in f:
                 if file.endswith('.flp') and "autosave" not in file and "overwritten" not in file:
-                    flp_path_string = os.path.join(p,file)
-                    flp_path = os.path.relpath(flp_path_string,path)
-                    flp_path = self.path_to_array(flp_path)
-                    flp_path.insert(0,root_folder_name)
-                    FLPfiles.append(flp_path)    # Append to filepath array
-                    FLPfiles_full.append(flp_path_string)
+                    full_path = os.path.join(p,file)
+                    flp_path_string = os.path.relpath(full_path,path)
+                    flp_path_string = os.path.join(root_folder_name,flp_path_string)
+                    filepath_relative_dir.append(flp_path_string)
+                    filepath_full.append(full_path)
                 update_process_counter += 1
-                if update_process_counter >= 1000:
-                    QApplication.processEvents()
+                if update_process_counter >= 1000:  # Must update process when searching through deep heiarchy
+                    QApplication.processEvents()    # Update in future to custom loading screen
                     update_process_counter = 0
-        return FLPfiles, FLPfiles_full
-    
-    # Convert filepath from string to file array
-    # Ex: "folder1/folder2/file1" == ["folder1","folder2","file1"]
-    def path_to_array(self, path):
-        path_array = os.path.normpath(path)
-        return path_array.split(os.sep)
+
+        return filepath_full, filepath_relative_dir  # Return list
 
 
 if __name__ == '__main__':
