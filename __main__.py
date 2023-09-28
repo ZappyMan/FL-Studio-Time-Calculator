@@ -170,6 +170,7 @@ class Window(QMainWindow):
             self.update_list_after_tree(selected_items)
             self.update_list_after_tree([triggered_treeitem])
             self.filetree.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
+            self.plot_data()
             self.filetree.tree.viewport().update()
         # UPDATE GRAPH HERE
 
@@ -196,6 +197,7 @@ class Window(QMainWindow):
             self.filelist.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
             self.update_tree_after_list(selected_items)
             self.update_tree_after_list([triggered_treeitem])
+            self.plot_data()
             self.filelist.tree.viewport().update()
         # UPDATE GRAPH HERE
 
@@ -212,7 +214,7 @@ class Window(QMainWindow):
             self.change_checkstate_of_all_children(item.child(child_index), checkState)
             item.child(child_index).setCheckState(0,checkState)
 
-    # Loads file tree with paths and files
+    # Parses FL Projects, loads into file list/tree, and plots data
     def load_folders(self):
         path = QFileDialog().getExistingDirectory(self, 'Select a directory')
         if(path):
@@ -225,9 +227,26 @@ class Window(QMainWindow):
                     self.filetree.add_item(project) # Add FLP to tree
                     self.filelist.add_item(project) # Add FLP to list
                     self.flp_objects.append(project)
+                    self.plot_data()
                     QApplication.processEvents()
                 self.filetree.compress_filepaths()
                 self.load_state = False
+    
+    # Update graph and header information with FLP data
+    def plot_data(self):
+        self.plotItem.clear()
+        x_data = []
+        y_data = []
+        for object in self.flp_objects:
+            if object.list_object.checkState(0) == Qt.CheckState.Checked:
+                x_data.append(object.creation_date.timestamp())
+                y_data.append(object.project_hours)
+        self.plotItem.plot(x=x_data,y=y_data,pen=None,symbol='o')
+        viewBox = self.plotItem.getViewBox()
+        viewBox.enableAutoRange()
+        range = viewBox.viewRange()
+        viewBox.setLimits(yMin=0)
+        # Update information header
 
     # Fast search of selected root directory and sub-directories
     # Output nexted array in compress filepath form 
