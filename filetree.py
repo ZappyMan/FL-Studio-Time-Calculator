@@ -7,7 +7,7 @@
 #   PyFLP 2.2.1
 #   PySide6
 
-from PySide6.QtWidgets import QAbstractItemView, QTabWidget, QLabel, QSplitter ,QApplication, QMainWindow, QToolButton, QDateEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, QTreeWidget, QTreeWidgetItem, QGroupBox
+from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QLabel, QSplitter ,QApplication, QMainWindow, QToolButton, QDateEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, QTreeWidget, QTreeWidgetItem, QGroupBox
 from PySide6.QtCore import Qt
 from flpobject import FLP_Object
 import os
@@ -18,7 +18,14 @@ class CustomTree():
         self.tree = QTreeWidget()
         self.tree.setColumnCount(3)
         self.tree.setHeaderLabels(["Files","Hours","Creation Date"])
+        # self.tree.header().setSizeAdjustPolicy(QAbstractItemView.SizeAdjustPolicy.AdjustIgnored)
+        self.tree.header().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+        self.tree.header().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setStretchLastSection(False)
+        self.tree.header().resizeSection(1,15)
+        self.tree.header().resizeSection(2,90)
         self.tree.setSortingEnabled(True)
+        self.tree.setAutoScroll(False)
         # configure sorting characteristics
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)   # Extended Selection
 

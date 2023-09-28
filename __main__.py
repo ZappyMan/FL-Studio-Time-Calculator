@@ -31,6 +31,7 @@ class Window(QMainWindow):
         self.setWindowTitle("FL Studio Time Calculator")
         window_size = QApplication.primaryScreen().availableSize()
         self.resize(window_size)    # Set app to size of screen
+        self.resize(window_size.width()*0.85,window_size.height()*0.85)    # Set app to size of screen
 
         self.flp_objects = []   # Empty list to fold FLP_Object()'s
         self.load_state = False
@@ -138,11 +139,11 @@ class Window(QMainWindow):
         # Set Main Layout
         self.SectionDivider.addWidget(self.Lwidget)
         self.SectionDivider.addWidget(self.Rwidget)
-        self.SectionDivider.setSizes([window_size.width()*.30,window_size.width()*.70]) # Set sections to 25% and 75% screen width
-        self.filetree.tree.header().resizeSection(0,int(window_size.width()*.12))
-        self.filelist.tree.header().resizeSection(0,int(window_size.width()*.12))
-        self.filetree.tree.header().setMinimumSectionSize(int(window_size.width()*.05))
-        self.filelist.tree.header().setMinimumSectionSize(int(window_size.width()*.05))
+        self.SectionDivider.setSizes([self.width()*.30,self.width()*.70]) # Set sections to 25% and 75% screen width
+        self.filetree.tree.header().resizeSection(0,int(self.width()*.12))
+        self.filelist.tree.header().resizeSection(0,int(self.width()*.12))
+        self.filetree.tree.header().setMinimumSectionSize(int(self.width()*.05))
+        self.filelist.tree.header().setMinimumSectionSize(int(self.width()*.05))
         # self.filelist.header().setSelectionBehavior()
 
         widget = QWidget()
@@ -166,13 +167,23 @@ class Window(QMainWindow):
                             item.setCheckState(0,Qt.CheckState.Unchecked)
                         self.change_checkstate_of_all_children(item, item.checkState(0))
             self.change_checkstate_of_all_children(triggered_treeitem, triggered_treeitem.checkState(0))
+            self.update_list_after_tree(selected_items)
+            self.update_list_after_tree([triggered_treeitem])
             self.filetree.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
             self.filetree.tree.viewport().update()
+        # UPDATE GRAPH HERE
+
+    # Update filelist after filetree is updated
+    def update_list_after_tree(self, changed_items: list[QTreeWidgetItem]):
+        for item in changed_items:
+            for object in self.flp_objects:
+                if item == object.tree_object:
+                    object.list_object.setCheckState(0,item.checkState(0))
 
     # Triggered by list item checkbox
     def list_checked(self, signal):
         if not self.load_state:
-            triggered_treeitem = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
+            triggered_treeitem = self.filelist.tree.itemFromIndex(signal)   # Get tree widget item
             selected_items = self.filelist.tree.selectedItems()
             self.filelist.tree.model().blockSignals(True)
             if triggered_treeitem in selected_items:
@@ -183,6 +194,17 @@ class Window(QMainWindow):
                         else:
                             item.setCheckState(0,Qt.CheckState.Unchecked)
             self.filelist.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
+            self.update_tree_after_list(selected_items)
+            self.update_tree_after_list([triggered_treeitem])
+            self.filelist.tree.viewport().update()
+        # UPDATE GRAPH HERE
+
+    # Update filetree after filelist is updated
+    def update_tree_after_list(self, changed_items: list[QTreeWidgetItem]):
+        for item in changed_items:
+            for object in self.flp_objects:
+                if item == object.list_object:
+                    object.tree_object.setCheckState(0,item.checkState(0))
 
     # Recursivly change checkstate of all children from starting item
     def change_checkstate_of_all_children(self, item: QTreeWidgetItem, checkState):
