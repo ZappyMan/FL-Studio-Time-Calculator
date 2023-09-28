@@ -13,12 +13,6 @@ from PySide6.QtCore import Qt
 
 # Local clone of pyflp library used
 import pyflp
-# CHANGES MADE TO LIBRARY
-#   __init__.py 
-#       - Line 131 divided file_size by 2
-#    channel.py 
-#       - Line 279 Commented out
-
 
 # Custom object to hold information about parsed song
 class FLP_Object():
@@ -35,7 +29,7 @@ class FLP_Object():
     # Convert filepath from string to file array
     # Ex: "folder1/folder2/file1" == ["folder1","folder2","file1"]
     def path_to_array(self, path) -> list:
-        # path_array = os.path.normpath(path)
+        # path_array = os.path.normpath(path)   # Normalize path
         return path.split(os.sep)
         
     # Parse song

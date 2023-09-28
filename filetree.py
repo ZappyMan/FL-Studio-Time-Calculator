@@ -10,6 +10,7 @@
 from PySide6.QtWidgets import QAbstractItemView, QTabWidget, QLabel, QSplitter ,QApplication, QMainWindow, QToolButton, QDateEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, QTreeWidget, QTreeWidgetItem, QGroupBox
 from PySide6.QtCore import Qt
 from flpobject import FLP_Object
+import os
 
 # Holds QTreeWidget file tree and appropriate customization functions
 class CustomTree():
@@ -37,11 +38,8 @@ class CustomTree():
     # Inserts object into file tree
     def insert_into_tree(self, flp_object: FLP_Object):
         tree_pointer = None
-        print()
-        print("START")
         for directory in flp_object.path_to_array(flp_object.relative_path):
             # check for root directory
-            print(directory)
             if self.tree.topLevelItemCount() == 0:
                 root = QTreeWidgetItem([directory,"",""])
                 root.setCheckState(0,Qt.CheckState.Checked)
@@ -61,4 +59,32 @@ class CustomTree():
                         tree_pointer.addChild(dir)
                         tree_pointer.setExpanded(True)
                         tree_pointer = dir
-                    
+
+    # Compress filespaths for long paths with single children
+    def compress_filepaths(self):
+        # Check through toplevel items and their children
+        for index in range(self.tree.topLevelItemCount()):
+            top_level_item = self.tree.topLevelItem(index)
+            for child_index in range(top_level_item.childCount()):
+                self.recursive_depth_search(top_level_item.child(child_index))
+
+        # .takechildren()
+
+    # Recursivly search through children and find instances of paths that need to be compressed
+    def recursive_depth_search(self, item: QTreeWidgetItem):
+        count = item.childCount()
+        if count == 0:  # Contains no children
+            return
+        elif count == 1:
+            # if item has children, take them and merge strings
+            if item.child(0).text(0).endswith(".flp"):
+                return
+            else:
+                new_children = item.child(0).takeChildren()  # get childs child
+                item.setText(0,os.path.join(item.text(0),item.child(0).text(0)))    # Update current items text
+                item.removeChild(item.child(0))
+                item.addChildren(new_children)
+                self.recursive_depth_search(item)   # continue recursion
+        else:   # Contains more than one child
+            for child_index in range(item.childCount()):
+                self.recursive_depth_search(item.child(child_index))

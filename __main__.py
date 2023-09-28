@@ -33,6 +33,7 @@ class Window(QMainWindow):
         self.resize(window_size)    # Set app to size of screen
 
         self.flp_objects = []   # Empty list to fold FLP_Object()'s
+        self.load_state = False
         
         # ----- Define Buttons and widgets in order of appearance ------
 
@@ -40,6 +41,10 @@ class Window(QMainWindow):
 
         self.filetree = CustomTree(True)
         self.filelist = CustomTree(False)
+
+        #self.filetree.tree.itemChanged.connect(self.tree_checked)
+        self.filetree.tree.model().dataChanged.connect(self.tree_checked)
+        self.filelist.tree.model().dataChanged.connect(self.list_checked)
 
         self.tabs.addTab(self.filelist.tree, "List")
         self.tabs.addTab(self.filetree.tree, "Tree")
@@ -146,12 +151,44 @@ class Window(QMainWindow):
         self.setCentralWidget(widget)
 
     # Triggered by tree item checkbox
-    def tree_checked(self):
-        pass
-    
+    def tree_checked(self, signal):
+        # grab all selected items
+        if not self.load_state:
+            selected_items = self.filetree.tree.selectedItems()             # Get list of user selected items
+            triggered_treeitem = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
+            self.filetree.tree.model().blockSignals(True)
+            if triggered_treeitem in selected_items:
+                for item in selected_items: # Update all selected items
+                    if item != triggered_treeitem: # Check if item has children
+                        if item.checkState(0) == Qt.CheckState.Unchecked:
+                            item.setCheckState(0,Qt.CheckState.Checked)
+                        else:
+                            item.setCheckState(0,Qt.CheckState.Unchecked)
+                        self.change_checkstate_of_all_children(item, item.checkState(0))
+            self.change_checkstate_of_all_children(triggered_treeitem, triggered_treeitem.checkState(0))
+            self.filetree.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
+            self.filetree.tree.viewport().update()
+
     # Triggered by list item checkbox
-    def list_checked(self):
-        pass
+    def list_checked(self, signal):
+        if not self.load_state:
+            triggered_treeitem = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
+            selected_items = self.filelist.tree.selectedItems()
+            self.filelist.tree.model().blockSignals(True)
+            if triggered_treeitem in selected_items:
+                for item in selected_items:
+                    if item != triggered_treeitem:
+                        if item.checkState(0) == Qt.CheckState.Unchecked:
+                            item.setCheckState(0,Qt.CheckState.Checked)
+                        else:
+                            item.setCheckState(0,Qt.CheckState.Unchecked)
+            self.filelist.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
+
+    # Recursivly change checkstate of all children from starting item
+    def change_checkstate_of_all_children(self, item: QTreeWidgetItem, checkState):
+        for child_index in range(item.childCount()):
+            self.change_checkstate_of_all_children(item.child(child_index), checkState)
+            item.child(child_index).setCheckState(0,checkState)
 
     # Loads file tree with paths and files
     def load_folders(self):
@@ -159,12 +196,7 @@ class Window(QMainWindow):
         if(path):
             filepaths_full, filepaths_relative_dir = self.walk(path)  # Returns FLPFile struct Object
             if len(filepaths_full) > 0:   # If project(s) found
-                # Set root directory
-                # root_path = os.path.normpath(path)
-                # root = QTreeWidgetItem([root_path.split(os.sep)[-1],""])
-                # root.setCheckState(0,Qt.CheckState.Checked)
-                # self.filetree.insertTopLevelItem(0, root)
-                # root.setExpanded(True)
+                self.load_state = True
                 for full_path, relative_path in zip(filepaths_full, filepaths_relative_dir):
                     project = FLP_Object(full_path, relative_path)
                     project.parse() # parse project
@@ -172,10 +204,8 @@ class Window(QMainWindow):
                     self.filelist.add_item(project) # Add FLP to list
                     self.flp_objects.append(project)
                     QApplication.processEvents()
-
-                # range = self.scatter.getPlotItem().getViewBox().viewRange()
-                # self.scatter.getPlotItem().getViewBox().setLimits(xMin=range[0][0], xMax=range[0][1],   
-                #              yMin=range[1][0], yMax=range[1][1])
+                self.filetree.compress_filepaths()
+                self.load_state = False
 
     # Fast search of selected root directory and sub-directories
     # Output nexted array in compress filepath form 
