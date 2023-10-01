@@ -43,21 +43,24 @@ class FLP_Object():
                 # other metrics                
             except:
                 print("Error: Could not parse file ", self.file_name)
+                self.project_hours = 0
             self.create_tree_object()
             self.create_list_object()
 
     # Create TreeWidget instance for file tree
     def create_tree_object(self):
-        self.tree_object = QTreeWidgetItem([self.file_name,str("{:.2f}".format(self.project_hours)),str(self.creation_date.date())])
-        if self.project_hours:  # If file could be parsed
+        if self.creation_date:  # If file could be parsed
+            self.tree_object = QTreeWidgetItem([self.file_name,str("{:.2f}".format(self.project_hours)),str(self.creation_date.date())])
             self.tree_object.setCheckState(0,Qt.CheckState.Checked)
         else:
+            self.tree_object = QTreeWidgetItem([self.file_name,"",""])
             self.tree_object.setBackground(0,Qt.GlobalColor.red)
 
     # Create TreeWidget instance for file list
     def create_list_object(self):
-        self.list_object = QTreeWidgetItem([self.file_name,str("{:.2f}".format(self.project_hours)),str(self.creation_date.date())])
-        if self.project_hours:  # If file could be parsed
+        if self.creation_date:  # If file could be parsed
+            self.list_object = QTreeWidgetItem([self.file_name,str("{:.2f}".format(self.project_hours)),str(self.creation_date.date())])
             self.list_object.setCheckState(0,Qt.CheckState.Checked)
         else:
+            self.list_object = QTreeWidgetItem([self.file_name,"",""])
             self.list_object.setBackground(0,Qt.GlobalColor.red)

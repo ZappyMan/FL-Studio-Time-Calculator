@@ -157,22 +157,19 @@ class Window(QMainWindow):
         if not self.load_state:
             selected_items = self.filetree.tree.selectedItems()             # Get list of user selected items
             triggered_treeitem = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
+            triggered_state = triggered_treeitem.checkState(0)
             self.filetree.tree.model().blockSignals(True)
             if triggered_treeitem in selected_items:
                 for item in selected_items: # Update all selected items
-                    if item != triggered_treeitem: # Check if item has children
-                        if item.checkState(0) == Qt.CheckState.Unchecked:
-                            item.setCheckState(0,Qt.CheckState.Checked)
-                        else:
-                            item.setCheckState(0,Qt.CheckState.Unchecked)
-                        self.change_checkstate_of_all_children(item, item.checkState(0))
+                    if item.background(0).color() != Qt.GlobalColor.red: # Check if item has children
+                        item.setCheckState(0,triggered_state)
+                        self.change_checkstate_of_all_children(item, triggered_state)
             self.change_checkstate_of_all_children(triggered_treeitem, triggered_treeitem.checkState(0))
             self.update_list_after_tree(selected_items)
             self.update_list_after_tree([triggered_treeitem])
             self.filetree.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
             self.plot_data()
             self.filetree.tree.viewport().update()
-        # UPDATE GRAPH HERE
 
     # Update filelist after filetree is updated
     def update_list_after_tree(self, changed_items: list[QTreeWidgetItem]):
@@ -185,21 +182,23 @@ class Window(QMainWindow):
     def list_checked(self, signal):
         if not self.load_state:
             triggered_treeitem = self.filelist.tree.itemFromIndex(signal)   # Get tree widget item
+            triggered_state = triggered_treeitem.checkState(0)
             selected_items = self.filelist.tree.selectedItems()
             self.filelist.tree.model().blockSignals(True)
             if triggered_treeitem in selected_items:
                 for item in selected_items:
-                    if item != triggered_treeitem:
-                        if item.checkState(0) == Qt.CheckState.Unchecked:
-                            item.setCheckState(0,Qt.CheckState.Checked)
-                        else:
-                            item.setCheckState(0,Qt.CheckState.Unchecked)
-            self.filelist.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
+                    if item.background(0).color() != Qt.GlobalColor.red:
+                        item.setCheckState(0,triggered_state)
+            # LEFT OFF HERE
+            # ADD TREE/LIST UPDATE FUNCTIONS TO INSSIDE FOR LOOP,
+            # SHOULDNT NEED TO ITERATE TWICE AND CHECK FOR RED TREEWIDGETITEM TWICE
+            self.filetree.tree.model().blockSignals(True)
             self.update_tree_after_list(selected_items)
             self.update_tree_after_list([triggered_treeitem])
+            self.filetree.tree.model().blockSignals(False)
+            self.filelist.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
             self.plot_data()
             self.filelist.tree.viewport().update()
-        # UPDATE GRAPH HERE
 
     # Update filetree after filelist is updated
     def update_tree_after_list(self, changed_items: list[QTreeWidgetItem]):
@@ -211,8 +210,9 @@ class Window(QMainWindow):
     # Recursivly change checkstate of all children from starting item
     def change_checkstate_of_all_children(self, item: QTreeWidgetItem, checkState):
         for child_index in range(item.childCount()):
-            self.change_checkstate_of_all_children(item.child(child_index), checkState)
-            item.child(child_index).setCheckState(0,checkState)
+            if item.child(child_index).background(0).color() != Qt.GlobalColor.red:
+                self.change_checkstate_of_all_children(item.child(child_index), checkState)
+                item.child(child_index).setCheckState(0,checkState)
 
     # Parses FL Projects, loads into file list/tree, and plots data
     def load_folders(self):
@@ -244,8 +244,10 @@ class Window(QMainWindow):
         self.plotItem.plot(x=x_data,y=y_data,pen=None,symbol='o')
         viewBox = self.plotItem.getViewBox()
         viewBox.enableAutoRange()
-        range = viewBox.viewRange()
         viewBox.setLimits(yMin=0)
+        self.total_num_files.setText(str(len(self.flp_objects)))
+        self.total_time_hours.setText(str("{:.2f}".format(sum(project.project_hours for project in self.flp_objects))))
+        self.total_time_days.setText("{:.2f}".format(float(self.total_time_hours.text())/24))
         # Update information header
 
     # Fast search of selected root directory and sub-directories

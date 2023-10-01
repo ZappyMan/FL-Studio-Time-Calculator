@@ -20,3 +20,6 @@ tests/untitled.flp
 pyflp/__pycache__/__init__.cpython-310.pyc
 *.pyc
 *.pyc
+*.pyc
+*.pyz
+*.exe
