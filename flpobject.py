@@ -10,9 +10,11 @@
 import datetime, os
 from PySide6.QtWidgets import QTreeWidgetItem
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QStandardItem
 
 # Local clone of pyflp library used
 import pyflp
+
 
 # Custom object to hold information about parsed song
 class FLP_Object():
@@ -23,8 +25,8 @@ class FLP_Object():
         self.creation_date = None           # datetime
         self.project_hours = None           # float
         # self.total_num_notes              # int
-        self.tree_object = None
-        self.list_object = None
+        self.tree_item = None
+        self.check_state = Qt.CheckState.Checked
 
     # Convert filepath from string to file array
     # Ex: "folder1/folder2/file1" == ["folder1","folder2","file1"]
@@ -44,23 +46,19 @@ class FLP_Object():
             except:
                 print("Error: Could not parse file ", self.file_name)
                 self.project_hours = 0
-            self.create_tree_object()
-            self.create_list_object()
 
-    # Create TreeWidget instance for file tree
-    def create_tree_object(self):
+    # Create standard item for different trees
+    def create_standard_item(self):
         if self.creation_date:  # If file could be parsed
-            self.tree_object = QTreeWidgetItem([self.file_name,str("{:.2f}".format(self.project_hours)),str(self.creation_date.date())])
-            self.tree_object.setCheckState(0,Qt.CheckState.Checked)
+            self.tree_item = QTreeWidgetItem([self.file_name,str("{:.2f}".format(self.project_hours)),str(self.creation_date.date())])
+            self.tree_item.setCheckState(0,self.check_state)
         else:
-            self.tree_object = QTreeWidgetItem([self.file_name,"",""])
-            self.tree_object.setBackground(0,Qt.GlobalColor.red)
+            self.tree_item = QTreeWidgetItem([self.file_name,"",""])
+            self.tree_item.setBackground(0,Qt.GlobalColor.red)
 
-    # Create TreeWidget instance for file list
-    def create_list_object(self):
-        if self.creation_date:  # If file could be parsed
-            self.list_object = QTreeWidgetItem([self.file_name,str("{:.2f}".format(self.project_hours)),str(self.creation_date.date())])
-            self.list_object.setCheckState(0,Qt.CheckState.Checked)
-        else:
-            self.list_object = QTreeWidgetItem([self.file_name,"",""])
-            self.list_object.setBackground(0,Qt.GlobalColor.red)
+    # Update personal class state based on tree_items checkstate
+    def update_state(self):
+        if Qt.ItemFlag.ItemIsUserCheckable in self.tree_item.flags():
+            self.check_state = self.tree_item.checkState(0)
+
+

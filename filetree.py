@@ -7,11 +7,13 @@
 #   PyFLP 2.2.1
 #   PySide6
 
-from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QLabel, QSplitter ,QApplication, QMainWindow, QToolButton, QDateEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, QTreeWidget, QTreeWidgetItem, QGroupBox
-from PySide6.QtCore import Qt
+from typing import Union
+from PySide6.QtWidgets import QGraphicsTextItem, QTreeView, QAbstractItemView, QHeaderView, QSplitter ,QApplication, QMainWindow, QToolButton, QDateEdit, QVBoxLayout, QHBoxLayout, QWidget, QFileDialog, QTreeWidget, QTreeWidgetItem, QGroupBox
+from PySide6.QtCore import Qt, QAbstractItemModel
+from PySide6.QtGui import QStandardItemModel, QStandardItem
 from flpobject import FLP_Object
 import os
-
+        
 # Holds QTreeWidget file tree and appropriate customization functions
 class CustomTree():
     def __init__(self, tree_bool):
@@ -28,19 +30,14 @@ class CustomTree():
         self.tree.setAutoScroll(False)
         # configure sorting characteristics
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)   # Extended Selection
-
         self.tree_bool = tree_bool    # True == Tree, False == List
-
-    # Return TreeWidget object
-    def get_qt_obj(self):
-        return self.tree
 
     # Add item to widget
     def add_item(self, flp_object: FLP_Object):
         if self.tree_bool:     # If this object is a tree
             self.insert_into_tree(flp_object)
         else:
-            self.tree.insertTopLevelItem(0,flp_object.list_object)
+            self.tree.insertTopLevelItem(0,flp_object.tree_item)
 
     # Inserts object into file tree
     def insert_into_tree(self, flp_object: FLP_Object):
@@ -58,7 +55,7 @@ class CustomTree():
                     tree_pointer = matches[0]
                 else:
                     if directory.endswith(".flp"):  # Add file
-                        tree_pointer.addChild(flp_object.tree_object)
+                        tree_pointer.addChild(flp_object.tree_item)
                         tree_pointer.setExpanded(True)
                     else:
                         dir = QTreeWidgetItem([directory,"",""])

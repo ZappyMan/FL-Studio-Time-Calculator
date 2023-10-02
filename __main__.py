@@ -43,15 +43,15 @@ class Window(QMainWindow):
         self.filetree = CustomTree(True)
         self.filelist = CustomTree(False)
 
-        #self.filetree.tree.itemChanged.connect(self.tree_checked)
-        self.filetree.tree.model().dataChanged.connect(self.tree_checked)
-        self.filelist.tree.model().dataChanged.connect(self.list_checked)
+        self.filetree.tree.model().dataChanged.connect(self.file_view_signal)
+        self.filelist.tree.model().dataChanged.connect(self.file_view_signal)
 
         self.tabs.addTab(self.filelist.tree, "List")
         self.tabs.addTab(self.filetree.tree, "Tree")
 
         self.tabs.setTabEnabled(1, True)
         self.tabs.setTabEnabled(2, True)
+        self.tabs.currentChanged.connect(self.update_file_selection)
 
         self.end = QDateEdit(calendarPopup=True)
         self.end.setDateTime(QDateTime.currentDateTime())
@@ -144,75 +144,65 @@ class Window(QMainWindow):
         self.filelist.tree.header().resizeSection(0,int(self.width()*.12))
         self.filetree.tree.header().setMinimumSectionSize(int(self.width()*.05))
         self.filelist.tree.header().setMinimumSectionSize(int(self.width()*.05))
-        # self.filelist.header().setSelectionBehavior()
 
         widget = QWidget()
         self.MasterLayout.addWidget(self.SectionDivider)
         widget.setLayout(self.MasterLayout)
         self.setCentralWidget(widget)
 
-    # Triggered by tree item checkbox
-    def tree_checked(self, signal):
-        # grab all selected items
+    # Activated when user changes tabs
+    # Index of current tab passed when signaled
+    def update_file_selection(self):
+        self.filetree.tree.clear()
+        self.filelist.tree.clear()
+        if self.tabs.currentIndex() == 0:
+            for _object in self.flp_objects:
+                _object.create_standard_item()
+                self.filelist.add_item(_object)
+        else:
+            for _object in self.flp_objects:
+                _object.create_standard_item()
+                self.filetree.add_item(_object)
+
+    # Function activated by data changed singal in either list or tree
+    def file_view_signal(self, signal):
+        if self.tabs.currentIndex() == 0:   # List
+            selected_items = self.filelist.tree.selectedItems()             # Get list of user selected items
+            triggered_item = self.filelist.tree.itemFromIndex(signal)   # Get tree widget item
+            file_system = self.filelist.tree
+        else:                               # Tree 
+            selected_items = self.filetree.tree.selectedItems()
+            triggered_item = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
+            file_system = self.filetree.tree
+
         if not self.load_state:
-            selected_items = self.filetree.tree.selectedItems()             # Get list of user selected items
-            triggered_treeitem = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
-            triggered_state = triggered_treeitem.checkState(0)
-            self.filetree.tree.model().blockSignals(True)
-            if triggered_treeitem in selected_items:
-                for item in selected_items: # Update all selected items
-                    if item.background(0).color() != Qt.GlobalColor.red: # Check if item has children
-                        item.setCheckState(0,triggered_state)
-                        self.change_checkstate_of_all_children(item, triggered_state)
-            self.change_checkstate_of_all_children(triggered_treeitem, triggered_treeitem.checkState(0))
-            self.update_list_after_tree(selected_items)
-            self.update_list_after_tree([triggered_treeitem])
-            self.filetree.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
-            self.plot_data()
-            self.filetree.tree.viewport().update()
-
-    # Update filelist after filetree is updated
-    def update_list_after_tree(self, changed_items: list[QTreeWidgetItem]):
-        for item in changed_items:
-            for object in self.flp_objects:
-                if item == object.tree_object:
-                    object.list_object.setCheckState(0,item.checkState(0))
-
-    # Triggered by list item checkbox
-    def list_checked(self, signal):
-        if not self.load_state:
-            triggered_treeitem = self.filelist.tree.itemFromIndex(signal)   # Get tree widget item
-            triggered_state = triggered_treeitem.checkState(0)
-            selected_items = self.filelist.tree.selectedItems()
-            self.filelist.tree.model().blockSignals(True)
-            if triggered_treeitem in selected_items:
-                for item in selected_items:
-                    if item.background(0).color() != Qt.GlobalColor.red:
-                        item.setCheckState(0,triggered_state)
-            # LEFT OFF HERE
-            # ADD TREE/LIST UPDATE FUNCTIONS TO INSSIDE FOR LOOP,
-            # SHOULDNT NEED TO ITERATE TWICE AND CHECK FOR RED TREEWIDGETITEM TWICE
-            self.filetree.tree.model().blockSignals(True)
-            self.update_tree_after_list(selected_items)
-            self.update_tree_after_list([triggered_treeitem])
-            self.filetree.tree.model().blockSignals(False)
-            self.filelist.tree.model().blockSignals(False)  # re-Enable triggers when editing trees
-            self.plot_data()
-            self.filelist.tree.viewport().update()
-
-    # Update filetree after filelist is updated
-    def update_tree_after_list(self, changed_items: list[QTreeWidgetItem]):
-        for item in changed_items:
-            for object in self.flp_objects:
-                if item == object.list_object:
-                    object.tree_object.setCheckState(0,item.checkState(0))
+            triggered_state = triggered_item.checkState(0)
+            file_system.model().blockSignals(True)
+            if triggered_item not in selected_items:
+                selected_items.append(triggered_item)
+            for item in selected_items: # Update all selected items
+                if Qt.ItemFlag.ItemIsUserCheckable in item.flags(): # Check if item has children
+                    item.setCheckState(0,triggered_state)
+                    self.change_checkstate_of_children(item, triggered_state)
+            file_system.model().blockSignals(False)
+            file_system.viewport().update()
+            self.update_object_states()
+            self.update_visuals()
+        else:   # File selection
+            # Update graph
+            pass
 
     # Recursivly change checkstate of all children from starting item
-    def change_checkstate_of_all_children(self, item: QTreeWidgetItem, checkState):
+    def change_checkstate_of_children(self, item: QTreeWidgetItem, state: Qt.CheckState):
         for child_index in range(item.childCount()):
-            if item.child(child_index).background(0).color() != Qt.GlobalColor.red:
-                self.change_checkstate_of_all_children(item.child(child_index), checkState)
-                item.child(child_index).setCheckState(0,checkState)
+            if Qt.ItemFlag.ItemIsUserCheckable in item.flags():
+                self.change_checkstate_of_children(item.child(child_index), state)
+                item.child(child_index).setCheckState(0,state)
+
+    # After file view has data changed, update personal class states 
+    def update_object_states(self):
+        for item in self.flp_objects:
+            item.update_state()
 
     # Parses FL Projects, loads into file list/tree, and plots data
     def load_folders(self):
@@ -224,31 +214,50 @@ class Window(QMainWindow):
                 for full_path, relative_path in zip(filepaths_full, filepaths_relative_dir):
                     project = FLP_Object(full_path, relative_path)
                     project.parse() # parse project
-                    self.filetree.add_item(project) # Add FLP to tree
-                    self.filelist.add_item(project) # Add FLP to list
                     self.flp_objects.append(project)
-                    self.plot_data()
+                    self.update_file_selection()
+                    self.update_visuals()
                     QApplication.processEvents()
                 self.filetree.compress_filepaths()
                 self.load_state = False
     
     # Update graph and header information with FLP data
-    def plot_data(self):
-        self.plotItem.clear()
+    def update_visuals(self):
+        # -- Collect data from project states
         x_data = []
         y_data = []
-        for object in self.flp_objects:
-            if object.list_object.checkState(0) == Qt.CheckState.Checked:
-                x_data.append(object.creation_date.timestamp())
-                y_data.append(object.project_hours)
-        self.plotItem.plot(x=x_data,y=y_data,pen=None,symbol='o')
+        for project in self.flp_objects:
+            if project.check_state == Qt.CheckState.Checked:
+                x_data.append(project.creation_date)
+                y_data.append(project.project_hours)
+        # -- Update Information Header
+        y_length = len(y_data)
+        if y_length > 0:
+            total_hours = sum(y_data)
+            self.total_num_files.setText(str(y_length))
+            self.total_time_hours.setText(str("{:.2f}".format(total_hours)))
+            self.total_time_days.setText("{:.2f}".format(float(self.total_time_hours.text())/24))
+            self.average_time.setText(str("{:.2f}".format(total_hours/y_length)))
+            if y_length > 1:
+                timedetla = ((max(x_data)-min(x_data)).total_seconds()/86400)/(y_length-1)
+            else:
+                timedetla = 0
+            self.average_break_time.setText("{:.2f} Days".format(timedetla))
+        else:
+            self.total_num_files.setText("--")
+            self.total_time_hours.setText("--")
+            self.total_time_days.setText("--")
+            self.average_time.setText("--")
+            self.average_break_time.setText("--")
+
+        # -- Update Visual plot
+        self.plotItem.clear()
         viewBox = self.plotItem.getViewBox()
-        viewBox.enableAutoRange()
-        viewBox.setLimits(yMin=0)
-        self.total_num_files.setText(str(len(self.flp_objects)))
-        self.total_time_hours.setText(str("{:.2f}".format(sum(project.project_hours for project in self.flp_objects))))
-        self.total_time_days.setText("{:.2f}".format(float(self.total_time_hours.text())/24))
-        # Update information header
+        viewBox.setLimits(xMin=-62135596800.0, xMax=253370764800.0,yMin=-1e+307,yMax=1e+307)    # Library defaults
+        self.plotItem.plot(x=[x.timestamp() for x in x_data],y=y_data,pen=None,symbol='o')
+        viewBox.updateViewRange()
+        _range = viewBox.viewRange()
+        viewBox.setLimits(xMin=_range[0][0], xMax=_range[0][1],yMin=_range[1][0],yMax=_range[1][1])
 
     # Fast search of selected root directory and sub-directories
     # Output nexted array in compress filepath form 
