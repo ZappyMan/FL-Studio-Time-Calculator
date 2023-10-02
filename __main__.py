@@ -172,6 +172,7 @@ class Window(QMainWindow):
             for _object in self.flp_objects:
                 _object.create_standard_item()
                 self.filetree.add_item(_object)
+            self.filetree.compress_filepaths()
 
     # Function activated by selection changed singal in either list or tree
     def file_selection_signal(self):
@@ -228,7 +229,9 @@ class Window(QMainWindow):
                     self.update_file_selection_tab()
                     self.update_visuals()
                     QApplication.processEvents()
-                self.filetree.compress_filepaths()
+                # self.filetree.compress_filepaths()
+                self.filetree.tree.setSortingEnabled(True)
+                self.filelist.tree.setSortingEnabled(True)
                 self.load_state = False
     
     # Update graph and header information with FLP data

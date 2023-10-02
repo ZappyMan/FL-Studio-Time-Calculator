@@ -26,7 +26,7 @@ class CustomTree():
         self.tree.header().setStretchLastSection(False)
         self.tree.header().resizeSection(1,15)
         self.tree.header().resizeSection(2,90)
-        self.tree.setSortingEnabled(True)
+        self.tree.setSortingEnabled(False)   # By default, disable when bulk updating
         self.tree.setAutoScroll(False)
         # configure sorting characteristics
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)   # Extended Selection
