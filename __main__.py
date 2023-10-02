@@ -43,6 +43,8 @@ class Window(QMainWindow):
         self.filetree = CustomTree(True)
         self.filelist = CustomTree(False)
 
+        self.filetree.tree.itemSelectionChanged.connect(self.file_selection_signal)
+        self.filelist.tree.itemSelectionChanged.connect(self.file_selection_signal)
         self.filetree.tree.model().dataChanged.connect(self.file_view_signal)
         self.filelist.tree.model().dataChanged.connect(self.file_view_signal)
 
@@ -51,7 +53,7 @@ class Window(QMainWindow):
 
         self.tabs.setTabEnabled(1, True)
         self.tabs.setTabEnabled(2, True)
-        self.tabs.currentChanged.connect(self.update_file_selection)
+        self.tabs.currentChanged.connect(self.update_file_selection_tab)
 
         self.end = QDateEdit(calendarPopup=True)
         self.end.setDateTime(QDateTime.currentDateTime())
@@ -92,27 +94,34 @@ class Window(QMainWindow):
         self.average_time = QLabel("--")
         self.average_break_time = QLabel("--")
 
-        self.GB1 = QGroupBox("Total Files")
+        pixel_size = int(window_size.height()/70)
+
+        self.GB1 = QGroupBox("Total Files",)
+        self.GB1.setStyleSheet("font: bold {:d}px".format(pixel_size))
         temp_layout1 = QVBoxLayout()
         temp_layout1.addWidget(self.total_num_files)
         self.GB1.setLayout(temp_layout1)
 
         self.GB2 = QGroupBox("Total Time in Days")
+        self.GB2.setStyleSheet("font: bold {:d}px".format(pixel_size))
         temp_layout2 = QVBoxLayout()
         temp_layout2.addWidget(self.total_time_days)
         self.GB2.setLayout(temp_layout2)
 
         self.GB3 = QGroupBox("Total Time in Hours")
+        self.GB3.setStyleSheet("font: bold {:d}px".format(pixel_size))
         temp_layout3 = QVBoxLayout()
         temp_layout3.addWidget(self.total_time_hours)
         self.GB3.setLayout(temp_layout3)
 
         self.GB4 = QGroupBox("Avg. Project Time")
+        self.GB4.setStyleSheet("font: bold {:d}px".format(pixel_size))
         temp_layout4 = QVBoxLayout()
         temp_layout4.addWidget(self.average_time)
         self.GB4.setLayout(temp_layout4)
 
         self.GB5 = QGroupBox("Avg. Time Between Projects")
+        self.GB5.setStyleSheet("font: bold {:d}px".format(pixel_size))
         temp_layout5 = QVBoxLayout()
         temp_layout5.addWidget(self.average_break_time)
         self.GB5.setLayout(temp_layout5)
@@ -152,7 +161,7 @@ class Window(QMainWindow):
 
     # Activated when user changes tabs
     # Index of current tab passed when signaled
-    def update_file_selection(self):
+    def update_file_selection_tab(self):
         self.filetree.tree.clear()
         self.filelist.tree.clear()
         if self.tabs.currentIndex() == 0:
@@ -164,18 +173,22 @@ class Window(QMainWindow):
                 _object.create_standard_item()
                 self.filetree.add_item(_object)
 
+    # Function activated by selection changed singal in either list or tree
+    def file_selection_signal(self):
+        self.update_visuals()
+
     # Function activated by data changed singal in either list or tree
     def file_view_signal(self, signal):
-        if self.tabs.currentIndex() == 0:   # List
-            selected_items = self.filelist.tree.selectedItems()             # Get list of user selected items
-            triggered_item = self.filelist.tree.itemFromIndex(signal)   # Get tree widget item
-            file_system = self.filelist.tree
-        else:                               # Tree 
-            selected_items = self.filetree.tree.selectedItems()
-            triggered_item = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
-            file_system = self.filetree.tree
-
         if not self.load_state:
+            if self.tabs.currentIndex() == 0:   # List
+                selected_items = self.filelist.tree.selectedItems()             # Get list of user selected items
+                triggered_item = self.filelist.tree.itemFromIndex(signal)   # Get tree widget item
+                file_system = self.filelist.tree
+            else:                               # Tree 
+                selected_items = self.filetree.tree.selectedItems()
+                triggered_item = self.filetree.tree.itemFromIndex(signal)   # Get tree widget item
+                file_system = self.filetree.tree
+
             triggered_state = triggered_item.checkState(0)
             file_system.model().blockSignals(True)
             if triggered_item not in selected_items:
@@ -188,9 +201,6 @@ class Window(QMainWindow):
             file_system.viewport().update()
             self.update_object_states()
             self.update_visuals()
-        else:   # File selection
-            # Update graph
-            pass
 
     # Recursivly change checkstate of all children from starting item
     def change_checkstate_of_children(self, item: QTreeWidgetItem, state: Qt.CheckState):
@@ -215,7 +225,7 @@ class Window(QMainWindow):
                     project = FLP_Object(full_path, relative_path)
                     project.parse() # parse project
                     self.flp_objects.append(project)
-                    self.update_file_selection()
+                    self.update_file_selection_tab()
                     self.update_visuals()
                     QApplication.processEvents()
                 self.filetree.compress_filepaths()
@@ -225,9 +235,19 @@ class Window(QMainWindow):
     def update_visuals(self):
         # -- Collect data from project states
         x_data = []
-        y_data = []
+        y_data = []    
+        x_selected = []
+        y_selected = []
+        x_nselected = []
+        y_nselected = []
         for project in self.flp_objects:
             if project.check_state == Qt.CheckState.Checked:
+                if project.tree_item.isSelected():
+                    x_selected.append(project.creation_date)
+                    y_selected.append(project.project_hours)
+                else:
+                    x_nselected.append(project.creation_date)
+                    y_nselected.append(project.project_hours)
                 x_data.append(project.creation_date)
                 y_data.append(project.project_hours)
         # -- Update Information Header
@@ -254,7 +274,8 @@ class Window(QMainWindow):
         self.plotItem.clear()
         viewBox = self.plotItem.getViewBox()
         viewBox.setLimits(xMin=-62135596800.0, xMax=253370764800.0,yMin=-1e+307,yMax=1e+307)    # Library defaults
-        self.plotItem.plot(x=[x.timestamp() for x in x_data],y=y_data,pen=None,symbol='o')
+        self.plotItem.plot(x=[x.timestamp() for x in x_nselected],y=y_nselected,pen=None,symbol='o')
+        self.plotItem.plot(x=[x.timestamp() for x in x_selected],y=y_selected,pen=None,symbolBrush=pg.mkColor('r'),symbol='o')  # Draw selected second for overlay effect
         viewBox.updateViewRange()
         _range = viewBox.viewRange()
         viewBox.setLimits(xMin=_range[0][0], xMax=_range[0][1],yMin=_range[1][0],yMax=_range[1][1])
